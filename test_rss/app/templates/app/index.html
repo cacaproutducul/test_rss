@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agrégateur RSS Modulaire</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      color: #333;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .header {
+      text-align: center;
+      color: white;
+      margin-bottom: 30px;
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .header p {
+      font-size: 1.1rem;
+      opacity: 0.9;
+    }
+
+    .main-content {
+      display: grid;
+      grid-template-columns: 350px 1fr;
+      gap: 20px;
+      height: calc(100vh - 180px);
+    }
+
+    /* ===========================================
+       COMPOSANT: SIDEBAR / FEED LIST
+       ========================================== */
+    .sidebar {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+      backdrop-filter: blur(10px);
+      overflow-y: auto;
+    }
+
+    .stats-component {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      flex: 1;
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .stat-number {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #667eea;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    .search-component {
+      position: relative;
+      margin-bottom: 20px;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 12px 40px 12px 16px;
+      border: 2px solid #e0e6ed;
+      border-radius: 25px;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      background: white;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .search-icon {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #666;
+    }
+
+    .feed-list-component {
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: #333;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .feeds-list {
+      list-style: none;
+    }
+
+    .feed-item {
+      background: white;
+      margin: 8px 0;
+      padding: 12px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: 2px solid transparent;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feed-item::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      width: 4px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      transform: scaleY(0);
+      transition: transform 0.3s ease;
+    }
+
+    .feed-item:hover {
+      transform: translateX(4px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .feed-item:hover::before {
+      transform: scaleY(1);
+    }
+
+    .feed-item.active {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      transform: translateX(4px);
+    }
+
+    .feed-item.active::before {
+      transform: scaleY(1);
+      background: white;
+    }
+
+    .feed-title {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .feed-count {
+      font-size: 0.8rem;
+      opacity: 0.7;
+    }
+
+    .filters-component {
+      margin-top: 20px;
+    }
+
+    .filter-group {
+      margin-bottom: 15px;
+    }
+
+    .filter-label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+      color: #555;
+    }
+
+    .filter-select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 2px solid #e0e6ed;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+    }
+
+    /* ===========================================
+       COMPOSANT: CONTENT AREA / FEED DETAILS
+       ========================================== */
+    .content-area {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .content-header-component {
+      margin-bottom: 20px;
+    }
+
+    .articles-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #e0e6ed;
+    }
+
+    .articles-title {
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .view-toggle-component {
+      display: flex;
+      background: #f0f0f0;
+      border-radius: 8px;
+      padding: 4px;
+    }
+
+    .view-btn {
+      padding: 8px 16px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.3s ease;
+    }
+
+    .view-btn.active {
+      background: white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    /* ===========================================
+       COMPOSANT: ARTICLES LIST / FEED ITEMS
+       ========================================== */
+    .articles-container-component {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 10px;
+    }
+
+    .article-item {
+      background: white;
+      margin-bottom: 15px;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+      border: 1px solid #e0e6ed;
+    }
+
+    .article-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+
+    .article-content {
+      padding: 20px;
+    }
+
+    .article-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+
+    .article-title a {
+      color: #333;
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+
+    .article-title a:hover {
+      color: #667eea;
+    }
+
+    .article-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      font-size: 0.85rem;
+      color: #666;
+    }
+
+    .article-date {
+      background: #f8f9fa;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    .article-source {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    .article-description {
+      color: #666;
+      line-height: 1.5;
+      margin-top: 10px;
+    }
+
+    .article-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #f0f0f0;
+    }
+
+    .action-btn {
+      background: none;
+      border: 1px solid #ddd;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: all 0.3s ease;
+    }
+
+    .action-btn:hover {
+      background: #f8f9fa;
+    }
+
+    .action-btn.favorite.active {
+      background: #ff6b6b;
+      color: white;
+      border-color: #ff6b6b;
+    }
+
+    /* Vue compacte */
+    .compact-view .article-item {
+      margin-bottom: 8px;
+    }
+
+    .compact-view .article-content {
+      padding: 12px 16px;
+    }
+
+    .compact-view .article-title {
+      font-size: 0.95rem;
+      margin-bottom: 4px;
+    }
+
+    .compact-view .article-description,
+    .compact-view .article-actions {
+      display: none;
+    }
+
+    /* ===========================================
+       COMPOSANT: PAGINATION
+       ========================================== */
+    .pagination-component {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      margin-top: 20px;
+      padding: 15px;
+    }
+
+    .pagination-component button {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      background: white;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.3s ease;
+    }
+
+    .pagination-component button:hover:not(:disabled) {
+      background: #667eea;
+      color: white;
+    }
+
+    .pagination-component button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .pagination-component button.active {
+      background: #667eea;
+      color: white;
+      border-color: #667eea;
+    }
+
+    /* ===========================================
+       ÉTATS ET UTILITAIRES
+       ========================================== */
+    .loading-component {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+
+    .loading-component::after {
+      content: '';
+      width: 30px;
+      height: 30px;
+      margin: 10px auto;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      display: block;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .error-component {
+      background: #fee;
+      color: #c33;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 10px 0;
+      border: 1px solid #fcc;
+    }
+
+    .empty-state-component {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+
+    .empty-state-component h3 {
+      margin-bottom: 10px;
+      color: #333;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .main-content {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+      
+      .sidebar {
+        order: 2;
+      }
+      
+      .content-area {
+        order: 1;
+        min-height: 60vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📰 Agrégateur RSS Modulaire</h1>
+      <p>Architecture basée sur des composants réutilisables</p>
+    </div>
+
+    <div class="main-content">
+      <!-- ===============================================
+           SIDEBAR: Composant de liste des flux
+           =============================================== -->
+      <div class="sidebar">
+        <!-- Composant: Statistiques -->
+        <div class="stats-component">
+          <div class="stat-card">
+            <div class="stat-number" id="feeds-count">0</div>
+            <div class="stat-label">Flux</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="articles-count">0</div>
+            <div class="stat-label">Articles</div>
+          </div>
+        </div>
+
+        <!-- Composant: Recherche de flux -->
+        <div class="search-component">
+          <input type="text" class="search-input" id="feed-search" placeholder="Rechercher un flux...">
+          <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- Composant: Liste des flux -->
+        <div class="feed-list-component">
+          <div class="section-title">📡 Flux RSS</div>
+          <ul class="feeds-list" id="feeds-list">
+            <li class="loading-component">Chargement des flux...</li>
+          </ul>
+        </div>
+
+        <!-- Composant: Filtres -->
+        <div class="filters-component">
+          <div class="section-title">🎛️ Filtres</div>
+          
+          <div class="filter-group">
+            <label class="filter-label">Trier par :</label>
+            <select class="filter-select" id="sort-filter">
+              <option value="date-desc">Plus récents</option>
+              <option value="date-asc">Plus anciens</option>
+              <option value="title-asc">Titre A-Z</option>
+              <option value="title-desc">Titre Z-A</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label">Période :</label>
+            <select class="filter-select" id="period-filter">
+              <option value="all">Toutes les dates</option>
+              <option value="today">Aujourd'hui</option>
+              <option value="week">Cette semaine</option>
+              <option value="month">Ce mois</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===============================================
+           CONTENT AREA: Composant de détails du flux
+           =============================================== -->
+      <div class="content-area">
+        <!-- Composant: Recherche d'articles -->
+        <div class="search-component">
+          <input type="text" class="search-input" id="article-search" placeholder="Rechercher dans les articles...">
+          <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- Composant: En-tête du contenu -->
+        <div class="content-header-component">
+          <div class="articles-header">
+            <div class="articles-title" id="articles-title">Sélectionnez un flux</div>
+            <!-- Composant: Basculeur de vue -->
+            <div class="view-toggle-component">
+              <button class="view-btn active" id="detailed-view">📄 Détaillé</button>
+              <button class="view-btn" id="compact-view">📋 Compact</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Composant: Conteneur d'articles -->
+        <div class="articles-container-component" id="articles-container">
+          <div class="empty-state-component">
+            <h3>🎯 Choisissez votre actualité</h3>
+            <p>Sélectionnez un flux dans la liste pour voir les derniers articles</p>
+          </div>
+        </div>
+
+        <!-- Composant: Pagination -->
+        <div class="pagination-component" id="pagination" style="display: none;">
+          <button id="prev-page">← Précédent</button>
+          <span id="page-info">Page 1 sur 1</span>
+          <button id="next-page">Suivant →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===============================================
+       JAVASCRIPT MODULAIRE PAR COMPOSANTS
+       =============================================== -->
+  <script>
+    // ===================================================
+    // MODULE: Configuration et utilitaires
+    // ===================================================
+    const Config = {
+      apiBase: '/api',
+      articlesPerPage: 10,
+      refreshInterval: 300000 // 5 minutes
+    };
+
+    const Utils = {
+      formatDate(dateString) {
+        if (!dateString) return 'Date inconnue';
+        return new Date(dateString).toLocaleString('fr-FR', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      },
+
+      truncateText(text, length = 200) {
+        if (!text) return '';
+        return text.length > length ? text.substring(0, length) + '...' : text;
+      },
+
+      debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+          const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+          };
+          clearTimeout(timeout);
+          timeout = setTimeout(later, wait);
+        };
+      }
+    };
+
+    // ===================================================
+    // MODULE: Gestionnaire d'état global
+    // ===================================================
+    class StateManager {
+      constructor() {
+        this.state = {
+          feeds: [],
+          currentFeed: null,
+          allArticles: [],
+          filteredArticles: [],
+          currentPage: 1,
+          isCompactView: false,
+          loading: false,
+          error: null
+        };
+        this.listeners = {};
+      }
+
+      setState(updates) {
+        const prevState = { ...this.state };
+        this.state = { ...this.state, ...updates };
+        this.notifyListeners(prevState);
+      }
+
+      getState() {
+        return this.state;
+      }
+
+      subscribe(key, callback) {
+        if (!this.listeners[key]) {
+          this.listeners[key] = [];
+        }
+        this.listeners[key].push(callback);
+      }
+
+      notifyListeners(prevState) {
+        Object.keys(this.listeners).forEach(key => {
+          if (this.state[key] !== prevState[key]) {
+            this.listeners[key].forEach(callback => callback(this.state[key], prevState[key]));
+          }
+        });
+      }
+    }
+
+    // ===================================================
+    // MODULE: Service API
+    // ===================================================
+    class ApiService {
+      static async fetchFeeds() {
+        const response = await fetch(`${Config.apiBase}/feeds/`);
+        if (!response.ok) throw new Error(`Erreur ${response.status}`);
+        return response.json();
+      }
+
+      static async fetchFeedItems(feedId) {
+        const response = await fetch(`${Config.apiBase}/feeds/${feedId}/items/`);
+        if (!response.ok) throw new Error(`Erreur ${response.status}`);
+        return response.json();
+      }
+
+      static async fetchAllArticles(feeds) {
+        const allArticles = [];
+        
+        for (const feed of feeds) {
+          try {
+            const items = await this.fetchFeedItems(feed.id);
+            const articlesWithSource = items.map(item => ({
+              ...item,
+              source: feed.title || feed.url
+            }));
+            allArticles.push(...articlesWithSource);
+          } catch (error) {
+            console.warn(`Erreur lors du chargement du flux ${feed.id}:`, error);
+          }
+        }
+        
+        return allArticles;
+      }
+    }
+
+    // ===================================================
+    // COMPOSANT: Statistiques
+    // ===================================================
+    class StatsComponent {
+      constructor(stateManager) {
+        this.stateManager = stateManager;
+        this.init();
+      }
+
+      init() {
+        this.stateManager.subscribe('feeds', (feeds) => {
+          document.getElementById('feeds-count').textContent = feeds.length;
+        });
+
+        this.stateManager.subscribe('filteredArticles', (articles) => {
+          document.getElementById('articles-count').textContent = articles.length;
+        });
+      }
+    }
+
+    // ===================================================
+    // COMPOSANT: Liste des flux
+    // ===================================================
+    class FeedListComponent {
+      constructor(stateManager) {
+        this.stateManager = stateManager;
+        this.feedsList = document.getElementById('feeds-list');
+        this.init();
+      }
+
+      init() {
+        this.stateManager.subscribe('feeds', (feeds) => {
+          this.renderFeeds(feeds);
+        });
+
+        this.stateManager.subscribe('loading', (loading) => {
+          if (loading) {
+            this.feedsList.innerHTML = '<li class="loading-component">Chargement...</li>';
+          }
+        });
+
+        this.stateManager.subscribe('error', (error) => {
+          if (error) {
+            this.feedsList.innerHTML = `<li class="error-component">${error}</li>`;
+          }
+        });
+
+        // Recherche dans les flux
+        const searchInput = document.getElementById('feed-search');
+        searchInput.addEventListener('input', Utils.debounce((e) => {
+          this.filterFeeds(e.target.value);
+        }, 300));
+      }
+
+      renderFeeds(feeds) {
+        if (feeds.length === 0) {
+          this.feedsList.innerHTML = '<li class="empty-state-component">Aucun flux disponible</li>';
+          return;
+        }
+
+        this.feedsList.innerHTML = '';
+
+        // Option "Tous les flux"
+        const allFeedsItem = this.createFeedItem({
+          id: 'all',
+          title: '🌐 Tous les flux',
+          subtitle: 'Voir tous les articles'
+        }, () => this.loadAllArticles());
+        
+        this.feedsList.appendChild(allFeedsItem);
+
+        // Flux individuels
+        feeds.forEach(feed => {
+          const feedItem = this.createFeedItem(feed, () => this.loadFeedArticles(feed));
+          this.feedsList.appendChild(feedItem);
+        });
+      }
+
+      createFeedItem(feed, clickHandler) {
+        const li = document.createElement('li');
+        li.className = 'feed-item';
+        li.innerHTML = `
+          <div class="feed-title">${feed.title || feed.url}</div>
+          <div class="feed-count">${feed.subtitle || 'Cliquer pour charger'}</div>
+        `;
+        li.onclick = (e) => {
+          this.setActiveState(e.target.closest('.feed-item'));
+          clickHandler();
+        };
+        return li;
+      }
+
+      setActiveState(element) {
+        document.querySelectorAll('.feed-item').forEach(item => {
+          item.classList.remove('active');
+        });
+        element.classList.add('active');
+      }
+
+      filterFeeds(query) {
+        const feeds = document.querySelectorAll('.feed-item');
+        feeds.forEach((feed, index) => {
+          if (index === 0) return; // Skip "Tous les flux"
+          
+          const title = feed.querySelector('.feed-title').textContent.toLowerCase();
+          const matches = title.includes(query.toLowerCase());
+          feed.style.display = matches ? 'block' : 'none';
+        });
+      }
+
+      async loadAllArticles() {
+        const { feeds } = this.stateManager.getState();
+        this.stateManager.setState({ loading: true });
+        
+        document.getElementById('articles-title').textContent = '🌐 Tous les flux';
+
+        try {
+          const articles = await ApiService.fetchAllArticles(feeds);
+          this.stateManager.setState({ 
+            allArticles: articles, 
+            currentFeed: null,
+            loading: false 
+          });
+        } catch (error) {
+          this.stateManager.setState({ 
+            error: error.message, 
+            loading: false 
+          });
+        }
+      }
+
+      async loadFeedArticles(feed) {
+        this.stateManager.setState({ loading: true });
+        document.getElementById('articles-title').textContent = feed.title || feed.url;
+
+        try {
+          const articles = await ApiService.fetchFeedItems(feed.id);
+          const articlesWithSource = articles.map(article => ({
+            ...article,
+            source: feed.title || feed.url
+          }));
+
+          this.stateManager.setState({ 
+            allArticles: articlesWithSource,
+            currentFeed: feed,
+            loading: false 
+          });
+        } catch (error) {
+          this.stateManager.setState({ 
+            error: error.message, 
+            loading: false 
+          });
+        }
+      }
+    }
+
+    // ===================================================
+    // COMPOSANT: Filtres et recherche d'articles
+    // ===================================================
+    class ArticleFiltersComponent {
+      constructor(stateManager) {
+        this.stateManager = stateManager;
+        this.init();
+      }
+
+      init() {
+        // Recherche d'articles
+        const searchInput = document.getElementById('article-search');
+        searchInput.addEventListener('input', Utils.debounce(() => {
+          this.applyFilters();
+        }, 300));
+
+        // Filtres
+        document.getElementById('sort-filter').addEventListener('change', () => {
+          this.applyFilters();
+        });
+
+        document.getElementById('period-filter').addEventListener('change', () => {
+          this.applyFilters();
+        });
+
+        // Écouter les changements d'articles
+        this.stateManager.subscribe('allArticles', () => {
+          this.applyFilters();
+        });
+      }
+
+      applyFilters() {
+        const { allArticles } = this.stateManager.getState();
+        const searchQuery = document.getElementById('article-search').value.toLowerCase();
+        const sortFilter = document.getElementById('sort-filter').value;
+        const periodFilter = document.getElementById('period-filter').value;
+
+        let filtered = [...allArticles];
+
+        // Filtre de recherche
+        if (searchQuery) {
+          filtered = filtered.filter(article => 
+            article.title.toLowerCase().includes(searchQuery) ||
+            (article.description && article.description.toLowerCase().includes(searchQuery))
+          );
+        }
+
+        // Filtre de période
+        if (periodFilter !== 'all') {
+          const now = new Date();
+          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          
+          filtered = filtered.filter(article => {
+            if (!article.published_date) return false;
+            const articleDate = new Date(article.published_date);
+            
+            switch (periodFilter) {
+              case 'today':
+                return articleDate >= today;
+              case 'week':
+                const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                return articleDate >= weekAgo;
+              case 'month':
+                const monthAgo = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+                return articleDate >= monthAgo;
+              default:
+                return true;
+            }
+          });
+        }
+
+        // Tri
+        filtered.sort((a, b) => {
+          switch (sortFilter) {
+            case 'date-desc':
+              return new Date(b.published_date || 0) - new Date(a.published_date || 0);
+            case 'date-asc':
+              return new Date(a.published_date || 0) - new Date(b.published_date || 0);
+            case 'title-asc':
+              return a.title.localeCompare(b.title);
+            case 'title-desc':
+              return b.title.localeCompare(a.title);
+            default:
+              return 0;
+          }
+        });
+
+        this.stateManager.setState({ 
+          filteredArticles: filtered, 
+          currentPage: 1 
+        });
+      }
+    }
+
+    // ===================================================
+    // COMPOSANT: Liste des articles
+    // ===================================================
+    class ArticlesListComponent {
+      constructor(stateManager) {
+        this.stateManager = stateManager;
+        this.container = document.getElementById('articles-container');
+        this.init();
+      }
+
+      init() {
+        this.stateManager.subscribe('filteredArticles', () => {
+          this.displayArticles();
+        });
+
+        this.stateManager.subscribe('currentPage', () => {
+          this.displayArticles();
+        });
+
+        this.stateManager.subscribe('isCompactView', () => {
+          this.displayArticles();
+        });
+
+        this.stateManager.subscribe('loading', (loading) => {
+          if (loading) {
+            this.container.innerHTML = '<div class="loading-component">Chargement des articles...</div>';
+          }
+        });
+
+        this.stateManager.subscribe('error', (error) => {
+          if (error) {
+            this.container.innerHTML = `<div class="error-component">Erreur: ${error}</div>`;
+          }
+        });
+      }
+
+      displayArticles() {
+        const { filteredArticles, currentPage, isCompactView } = this.stateManager.getState();
+        const startIndex = (currentPage - 1) * Config.articlesPerPage;
+        const endIndex = startIndex + Config.articlesPerPage;
+        const articles = filteredArticles.slice(startIndex, endIndex);
+
+        // Appliquer la classe de vue compacte
+        if (isCompactView) {
+          this.container.classList.add('compact-view');
+        } else {
+          this.container.classList.remove('compact-view');
+        }
+
+        if (articles.length === 0) {
+          this.container.innerHTML = `
+            <div class="empty-state-component">
+              <h3>📭 Aucun article trouvé</h3>
+              <p>Essayez de modifier vos critères de recherche</p>
+            </div>
+          `;
+          return;
+        }
+
+        this.container.innerHTML = articles.map(article => this.renderArticle(article)).join('');
+      }
+
+      renderArticle(article) {
+        const { isCompactView } = this.stateManager.getState();
+        
+        return `
+          <div class="article-item" data-article-id="${article.id}">
+            <div class="article-content">
+              <div class="article-title">
+                <a href="${article.link}" target="_blank" onclick="this.handleArticleClick('${article.id}')">${article.title}</a>
+              </div>
+              <div class="article-meta">
+                <span class="article-date">${Utils.formatDate(article.published_date)}</span>
+                ${article.source ? `<span class="article-source">${article.source}</span>` : ''}
+              </div>
+              ${!isCompactView && article.description ? 
+                `<div class="article-description">${Utils.truncateText(article.description)}</div>` : ''
+              }
+              ${!isCompactView ? `
+                <div class="article-actions">
+                  <button class="action-btn favorite" onclick="ArticleActionsComponent.toggleFavorite('${article.id}')">
+                    ⭐ Favoris
+                  </button>
+                  <button class="action-btn" onclick="ArticleActionsComponent.shareArticle('${article.id}')">
+                    📤 Partager
+                  </button>
+                  <button class="action-btn" onclick="ArticleActionsComponent.markAsRead('${article.id}')">
+                    ✓ Lu
+                  </button>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }
+
+      handleArticleClick(articleId) {
+        // Marquer automatiquement comme lu quand on clique
+        ArticleActionsComponent.markAsRead(articleId);
+      }
+    }
+
+    // ===================================================
+    // COMPOSANT: Actions sur les articles
+    // ===================================================
+    class ArticleActionsComponent {
+      constructor() {
+        this.favorites = JSON.parse(localStorage.getItem('rss-favorites') || '[]');
+        this.readArticles = JSON.parse(localStorage.getItem('rss-read') || '[]');
+        this.init();
+      }
+
+      init() {
+        // Mettre à jour l'affichage des favoris lors du chargement des articles
+        document.addEventListener('articlesRendered', () => {
+          this.updateFavoriteButtons();
+        });
+      }
+
+      static toggleFavorite(articleId) {
+        const instance = window.articleActionsComponent;
+        const index = instance.favorites.indexOf(articleId);
+        const button = document.querySelector(`[data-article-id="${articleId}"] .action-btn.favorite`);
+        
+        if (index > -1) {
+          instance.favorites.splice(index, 1);
+          button.classList.remove('active');
+          button.innerHTML = '⭐ Favoris';
+        } else {
+          instance.favorites.push(articleId);
+          button.classList.add('active');
+          button.innerHTML = '⭐ Retiré';
+        }
+        
+        localStorage.setItem('rss-favorites', JSON.stringify(instance.favorites));
+        instance.showNotification('Article ajouté aux favoris !');
+      }
+
+      static shareArticle(articleId) {
+        const article = window.stateManager.getState().filteredArticles.find(a => a.id == articleId);
+        if (!article) return;
+
+        if (navigator.share) {
+          navigator.share({
+            title: article.title,
+            url: article.link
+          });
+        } else {
+          navigator.clipboard.writeText(article.link).then(() => {
+            window.articleActionsComponent.showNotification('Lien copié dans le presse-papiers !');
+          });
+        }
+      }
+
+      static markAsRead(articleId) {
+        const instance = window.articleActionsComponent;
+        if (!instance.readArticles.includes(articleId)) {
+          instance.readArticles.push(articleId);
+          localStorage.setItem('rss-read', JSON.stringify(instance.readArticles));
+          
+          const articleElement = document.querySelector(`[data-article-id="${articleId}"]`);
+          if (articleElement) {
+            articleElement.style.opacity = '0.7';
+          }
+        }
+      }
+
+      updateFavoriteButtons() {
+        this.favorites.forEach(articleId => {
+          const button = document.querySelector(`[data-article-id="${articleId}"] .action-btn.favorite`);
+          if (button) {
+            button.classList.add('active');
+            button.innerHTML = '⭐ Retiré';
+          }
+        });
+      }
+
+      showNotification(message) {
+        // Simple notification toast
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background: #28a745;
+          color: white;
+          padding: 12px 20px;
+          border-radius: 8px;
+          z-index: 1000;
+          animation: slideIn 0.3s ease;
+        `;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+          notification.remove();
+        }, 3000);
+      }
+    }
+
+    // ===================================================
+    // COMPOSANT: Basculeur de vue
+    // ===================================================
+    class ViewToggleComponent {
+      constructor(stateManager) {
+        this.stateManager = stateManager;
+        this.detailedBtn = document.getElementById('detailed-view');
+        this.compactBtn = document.getElementById('compact-view');
+        this.init();
+      }
+
+      init() {
+        this.detailedBtn.addEventListener('click', () => {
+          this.toggleView(false);
+        });
+
+        this.compactBtn.addEventListener('click', () => {
+          this.toggleView(true);
+        });
+      }
+
+      toggleView(isCompact) {
+        this.stateManager.setState({ isCompactView: isCompact });
+        
+        if (isCompact) {
+          this.detailedBtn.classList.remove('active');
+          this.compactBtn.classList.add('active');
+        } else {
+          this.compactBtn.classList.remove('active');
+          this.detailedBtn.classList.add('active');
+        }
+      }
+    }
+
+    // ===================================================
+    // COMPOSANT: Pagination
+    // ===================================================
+    class PaginationComponent {
+      constructor(stateManager) {
+        this.stateManager = stateManager;
+        this.paginationElement = document.getElementById('pagination');
+        this.prevButton = document.getElementById('prev-page');
+        this.nextButton = document.getElementById('next-page');
+        this.pageInfo = document.getElementById('page-info');
+        this.init();
+      }
+
+      init() {
+        this.stateManager.subscribe('filteredArticles', () => {
+          this.updatePagination();
+        });
+
+        this.stateManager.subscribe('currentPage', () => {
+          this.updatePagination();
+        });
+
+        this.prevButton.addEventListener('click', () => {
+          this.changePage(-1);
+        });
+
+        this.nextButton.addEventListener('click', () => {
+          this.changePage(1);
+        });
+      }
+
+      updatePagination() {
+        const { filteredArticles, currentPage } = this.stateManager.getState();
+        const totalPages = Math.ceil(filteredArticles.length / Config.articlesPerPage);
+        
+        if (totalPages <= 1) {
+          this.paginationElement.style.display = 'none';
+          return;
+        }
+
+        this.paginationElement.style.display = 'flex';
+        this.pageInfo.textContent = `Page ${currentPage} sur ${totalPages}`;
+        this.prevButton.disabled = currentPage === 1;
+        this.nextButton.disabled = currentPage === totalPages;
+      }
+
+      changePage(direction) {
+        const { filteredArticles, currentPage } = this.stateManager.getState();
+        const totalPages = Math.ceil(filteredArticles.length / Config.articlesPerPage);
+        const newPage = currentPage + direction;
+        
+        if (newPage >= 1 && newPage <= totalPages) {
+          this.stateManager.setState({ currentPage: newPage });
+          document.getElementById('articles-container').scrollTop = 0;
+        }
+      }
+    }
+
+    // ===================================================
+    // COMPOSANT: Gestionnaire d'application principale
+    // ===================================================
+    class RSSApplication {
+      constructor() {
+        this.stateManager = new StateManager();
+        this.components = {};
+        this.init();
+      }
+
+      async init() {
+        // Initialiser tous les composants
+        this.components.stats = new StatsComponent(this.stateManager);
+        this.components.feedList = new FeedListComponent(this.stateManager);
+        this.components.articleFilters = new ArticleFiltersComponent(this.stateManager);
+        this.components.articlesList = new ArticlesListComponent(this.stateManager);
+        this.components.viewToggle = new ViewToggleComponent(this.stateManager);
+        this.components.pagination = new PaginationComponent(this.stateManager);
+        
+        // Initialiser les actions d'articles
+        window.articleActionsComponent = new ArticleActionsComponent();
+        window.stateManager = this.stateManager;
+
+        // Charger les données initiales
+        await this.loadInitialData();
+        
+        // Configuration de l'actualisation automatique
+        this.setupAutoRefresh();
+      }
+
+      async loadInitialData() {
+        this.stateManager.setState({ loading: true });
+
+        try {
+          const feeds = await ApiService.fetchFeeds();
+          this.stateManager.setState({ 
+            feeds, 
+            loading: false,
+            error: null 
+          });
+        } catch (error) {
+          this.stateManager.setState({ 
+            error: error.message, 
+            loading: false 
+          });
+        }
+      }
+
+      setupAutoRefresh() {
+        setInterval(() => {
+          const { currentFeed } = this.stateManager.getState();
+          if (currentFeed) {
+            this.components.feedList.loadFeedArticles(currentFeed);
+          }
+        }, Config.refreshInterval);
+      }
+
+      // Méthodes publiques pour l'interaction externe
+      refreshCurrentFeed() {
+        const { currentFeed } = this.stateManager.getState();
+        if (currentFeed) {
+          this.components.feedList.loadFeedArticles(currentFeed);
+        } else {
+          this.components.feedList.loadAllArticles();
+        }
+      }
+
+      exportArticles() {
+        const { filteredArticles } = this.stateManager.getState();
+        const data = JSON.stringify(filteredArticles, null, 2);
+        const blob = new Blob([data], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'rss-articles.json';
+        a.click();
+      }
+
+      getStats() {
+        const { feeds, filteredArticles } = this.stateManager.getState();
+        return {
+          totalFeeds: feeds.length,
+          totalArticles: filteredArticles.length,
+          favorites: window.articleActionsComponent.favorites.length,
+          readArticles: window.articleActionsComponent.readArticles.length
+        };
+      }
+    }
+
+    // ===================================================
+    // INITIALISATION DE L'APPLICATION
+    // ===================================================
+    document.addEventListener('DOMContentLoaded', () => {
+      // Créer l'instance globale de l'application
+      window.rssApp = new RSSApplication();
+      
+      // Ajouter les styles pour les animations
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        
+        .article-item[style*="opacity: 0.7"] {
+          position: relative;
+        }
+        
+        .article-item[style*="opacity: 0.7"]::after {
+          content: "✓ Lu";
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          background: #28a745;
+          color: white;
+          padding: 2px 8px;
+          border-radius: 12px;
+          font-size: 0.7rem;
+        }
+      `;
+      document.head.appendChild(style);
+      
+      console.log('🚀 Application RSS modulaire initialisée !');
+      console.log('📊 Utilisez window.rssApp.getStats() pour voir les statistiques');
+      console.log('🔄 Utilisez window.rssApp.refreshCurrentFeed() pour actualiser');
+      console.log('📁 Utilisez window.rssApp.exportArticles() pour exporter');
+    });
+
+  </script>
+</body>
+</html>
